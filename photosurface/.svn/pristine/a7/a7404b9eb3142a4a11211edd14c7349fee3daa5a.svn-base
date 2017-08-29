@@ -1,0 +1,165 @@
+#include "downloader.h"
+
+Downloader::Downloader(QObject *parent) :
+    QObject(parent)
+{
+//    exec_Timer();
+    list_there_flag = 0;
+
+    QString del_location = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/del_pic_list.txt";
+    qDebug() << "Path: " << del_location;
+    file2 = new QFile(del_location);
+
+    timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(doDownload()));
+    timer->start(120000);
+}
+
+void Downloader::doDownload(QString url)
+{
+    manager = new QNetworkAccessManager(this);
+
+    connect(manager, SIGNAL(finished(QNetworkReply*)),
+            this, SLOT(dl_replyFinished(QNetworkReply*)));
+
+    pic_manager = new QNetworkAccessManager(this);
+
+    connect(pic_manager, SIGNAL(finished(QNetworkReply*)),
+            this, SLOT(pic_replyFinished(QNetworkReply*)));
+
+    if (url == ""){
+        manager->get(QNetworkRequest(QUrl("ftp://rehad951:1qay!QAY@ftp.reha-daheim.de/private/pics/pic_list.txt")));   //Opti
+    }else{
+        pic_manager->get(QNetworkRequest(QUrl("ftp://rehad951:1qay!QAY@ftp.reha-daheim.de/private/pics/" + fn)));   //Opti
+    }
+    //manager->get(QNetworkRequest(QUrl("http://reha-daheim.de/08_OmaPro/pics/pic_17_Jun_2016_11-40-56.jpg")));
+
+}
+
+void Downloader::dl_replyFinished (QNetworkReply *reply)
+{
+    if(reply->error())
+    {
+        qDebug() << "LIST_ERROR!";
+        qDebug() << reply->errorString();
+        list_there_flag = 0;
+    }
+    else
+    {
+        list_there_flag = 1;
+
+        while(!(reply->atEnd())){
+            QString line = reply->readLine();
+            file_lst.append(line);
+        }
+        if(reply->atEnd()){
+            qDebug() << "@End_LIST";
+            process_line(file_lst.first());
+            file_lst.removeFirst();
+
+            //////--> If del_pic_list.txt is uploaded, cron job will delete pic_list. Only if a new pic is sent, a new list will be created
+            ///       That's how the server queries produce nearly no traffic.
+        }
+    }
+    reply->deleteLater();
+}
+
+void Downloader::pic_replyFinished (QNetworkReply *reply){
+    if(reply->error())
+    {
+        qDebug() << "PIC_ERROR!";
+        qDebug() << reply->errorString();
+    }
+    else
+    {
+        file = new QFile(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/" + fn);      //to be adapted!!!
+
+        if(file->open(QFile::Append))
+        {
+            file->write(reply->readAll());
+            file->flush();
+            file->close();
+        }
+        delete file;
+    }
+    if((!file_lst.isEmpty())){
+        process_line(file_lst.first());
+        file_lst.removeFirst();
+        qDebug() << "File not empty";
+    }else{
+        doUpload();
+        qDebug() << "File empty!";
+    }
+
+    //TODO: Lists >= 3 kritisch.
+
+    reply->deleteLater();
+}
+
+void Downloader::doUpload()
+{
+    manager = new QNetworkAccessManager(this);
+
+
+    connect(manager, SIGNAL(finished(QNetworkReply*)),
+            this, SLOT(ul_replyFinished(QNetworkReply*)));
+
+    file2->open(QIODevice::ReadWrite);
+
+    manager->put(QNetworkRequest(QUrl("ftp://rehad951:1qay!QAY@ftp.reha-daheim.de/private/pics/del_pic_list.txt")),file2); //Opti
+}
+
+void Downloader::ul_replyFinished (QNetworkReply *reply)
+{
+    if(reply->error())
+    {
+        qDebug() << "UL_ERROR!";
+        qDebug() << reply->errorString();
+        doUpload();
+    }
+    else
+    {
+//        qDebug() << reply->header(QNetworkRequest::ContentTypeHeader).toString();
+//        qDebug() << reply->header(QNetworkRequest::LastModifiedHeader).toDateTime().toString();
+//        qDebug() << reply->header(QNetworkRequest::ContentLengthHeader).toULongLong();
+//        qDebug() << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+//        qDebug() << reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString();
+
+        QString line = reply->readLine();
+        process_line(line);
+        if(reply->atEnd()){
+            qDebug() << "@End_UL";
+            //////--> If del_pic_list.txt is uploaded, cron job will delete pic_list. Only if a new pic is send, a new list will be created
+            ///       That's how the server queries produce nearly no traffic.
+        }
+    }
+    file2->close();
+    reply->deleteLater();
+}
+
+void Downloader::process_line(QString ln){
+    //QString url = QLatin1String(ln);
+    int loop_cnt = 0;
+
+    if(ln.length()> 2){
+        if(ln.startsWith("@")){
+            ln.remove(0,1);
+            functionality = new Functionality(ln);
+            functionality->moveToThread(&functionalityThread);
+            functionalityThread.start();
+            //Upload file or delete file or sth ...
+            return;
+        }
+        while(!(ln.endsWith(".jpg"))){
+            ln.chop(1);
+            loop_cnt++;
+            Q_ASSERT(loop_cnt <= 1000);
+//            return 1; //Potential error
+        }
+        ln.remove(0,19);
+        fn = ln;
+        doDownload(ln); ////Download file with chopped filename
+        qDebug() << ln;
+    }
+
+}
