@@ -1,167 +1,137 @@
 #include "downloader.h"
+#include <QDebug>
+#include <QThread>
 
-int download_period = 120000;
-
-Downloader::Downloader(QObject *parent) :
-    QObject(parent)
+Downloader::Downloader()
 {
-//    exec_Timer();
-    list_there_flag = 0;
-
-    QString del_location = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/del_pic_list.txt";
-    qDebug() << "Path: " << del_location;
-    file2 = new QFile(del_location);
-
-    timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(doDownload()));
-    timer->start(download_period);
+    dataThereFlag = false;
+    connect(&manager, SIGNAL(finished(QNetworkReply*)),
+            SLOT(downloadFinished(QNetworkReply*)));
+    user = "oma";
+    ftpUrl = "ftp://rehad951:1qay!QAY@ftp.reha-daheim.de";
+    QObject::connect(&timer, &QTimer::timeout, this, &Downloader::execute);
+    timer.start(60000);
 }
 
-void Downloader::doDownload(QString url)
+void Downloader::doDownload(const QUrl &url)
 {
-    manager = new QNetworkAccessManager(this);
+    QNetworkRequest request(url);
+    QNetworkReply *reply;
+    reply = manager.get(request);
 
-    connect(manager, SIGNAL(finished(QNetworkReply*)),
-            this, SLOT(dl_replyFinished(QNetworkReply*)));
+#ifndef QT_NO_SSL
+    connect(reply, SIGNAL(sslErrors(QList<QSslError>)), SLOT(sslErrors(QList<QSslError>)));
+#endif
 
-    pic_manager = new QNetworkAccessManager(this);
+    currentDownloads.append(reply);
+}
 
-    connect(pic_manager, SIGNAL(finished(QNetworkReply*)),
-            this, SLOT(pic_replyFinished(QNetworkReply*)));
+QString Downloader::saveFileName(const QUrl &url)
+{
+    QString path = url.path();
+    QString basename = QFileInfo(path).fileName();
 
-    if (url == ""){
-        manager->get(QNetworkRequest(QUrl("ftp://rehad951:1qay!QAY@ftp.reha-daheim.de/private/pics/oma/pic_list.txt")));   //Opti
-    }else{
-        pic_manager->get(QNetworkRequest(QUrl("ftp://rehad951:1qay!QAY@ftp.reha-daheim.de/private/pics/oma/" + fn)));   //Opti
+    if (basename.isEmpty())
+        return "download";
+
+    if (basename == "pic_list.txt")
+        return "pic_list.txt";
+
+    if (QFile::exists(basename)) {
+        qDebug() << basename << "already exists";
+        return "";
+    }
+    return basename;
+}
+
+bool Downloader::saveToDisk(const QString &filename, QIODevice *data)
+{
+    //    QFile  file(filename);
+    QFile file(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/" + filename);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qDebug() << "Could not open " << qPrintable(filename)
+                 <<" for writing: " << qPrintable(file.errorString()) << "\n";
+        return false;
+    }
+
+    file.write(data->readAll());
+    file.close();
+
+    return true;
+}
+
+void Downloader::execute()
+{
+    QString pic_list = ftpUrl + "/private/pics/" + user + "/pic_list.txt";
+
+    QUrl url = QUrl::fromEncoded(pic_list.toLocal8Bit());
+    doDownload(url);
+}
+
+void Downloader::downloadRepeater(QStringList args)
+{
+    foreach (QString arg, args) {
+        QUrl url = QUrl::fromEncoded(arg.toLocal8Bit());
+        doDownload(url);
     }
 }
 
-void Downloader::dl_replyFinished (QNetworkReply *reply)
-{
-    if(reply->error())
-    {
-        qDebug() << "LIST_ERROR!";
-        qDebug() << reply->errorString();
-        list_there_flag = 0;
-    }
-    else
-    {
-        list_there_flag = 1;
 
-        while(!(reply->atEnd())){
-            QString line = reply->readLine();
-            file_lst.append(line);
-        }
-        if(reply->atEnd()){
-            qDebug() << "@End_LIST";
-            process_line(file_lst.first());
-            file_lst.removeFirst();
-
-            //////--> If del_pic_list.txt is uploaded, cron job will delete pic_list. Only if a new pic is sent, a new list will be created
-            ///       That's how the server queries produce nearly no traffic.
-        }
+void Downloader::processPicList(QIODevice *data){
+    QStringList pic_urls;
+    char buf[1024];
+    while(data->canReadLine())
+    {
+        int nr_of_chars_read = data->readLine(buf, sizeof(buf));
+        pic_urls << ftpUrl + QString::fromLocal8Bit(buf, nr_of_chars_read-1);
+        qDebug() << pic_urls;
     }
-    reply->deleteLater();
+    downloadRepeater(pic_urls);
 }
 
-void Downloader::pic_replyFinished (QNetworkReply *reply){
-    if(reply->error())
-    {
-        qDebug() << "PIC_ERROR!";
-        qDebug() << reply->errorString();
-    }
-    else
-    {
-        file = new QFile(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/" + fn);      //to be adapted!!!
+void Downloader::sslErrors(const QList<QSslError> &sslErrors)
+{
+#ifndef QT_NO_SSL
+    foreach (const QSslError &error, sslErrors)
+        qDebug() << "SSL error: " << qPrintable(error.errorString()) << "\n";
+#else
+    Q_UNUSED(sslErrors);
+#endif
+}
 
-        if(file->open(QFile::Append))
+void Downloader::downloadFinished(QNetworkReply *reply)
+{
+    QUrl url = reply->url();
+    if (reply->error()) {
+        qDebug() << "Download of " << url.toEncoded().constData() << " failed: "
+                 << qPrintable(reply->errorString()) << "\n";
+    } else {
+        QString filename = saveFileName(url);
+        if((filename != "") && (filename != "pic_list.txt"))
         {
-            file->write(reply->readAll());
-            file->flush();
-            file->close();
+            if (saveToDisk(filename, reply))
+            {
+                qDebug() << "Download of"  << qPrintable(filename) << "succeeded";
+            }
+        }else if(filename == "pic_list.txt")
+        {
+            processPicList(reply);
         }
-        delete file;
-    }
-    if((!file_lst.isEmpty())){
-        process_line(file_lst.first());
-        file_lst.removeFirst();
-        qDebug() << "File not empty";
-    }else{
-        doUpload();
-        qDebug() << "File empty!";
+        dataThereFlag = true;
     }
 
-    //TODO: Lists >= 3 kritisch.
-
+    currentDownloads.removeAll(reply);
     reply->deleteLater();
-}
 
-void Downloader::doUpload()
-{
-    manager = new QNetworkAccessManager(this);
-
-
-    connect(manager, SIGNAL(finished(QNetworkReply*)),
-            this, SLOT(ul_replyFinished(QNetworkReply*)));
-
-    file2->open(QIODevice::ReadWrite);
-
-    manager->put(QNetworkRequest(QUrl("ftp://rehad951:1qay!QAY@ftp.reha-daheim.de/private/pics/del_pic_list.txt")),file2); //Opti
-}
-
-void Downloader::ul_replyFinished (QNetworkReply *reply)
-{
-    if(reply->error())
+    if (currentDownloads.isEmpty())
     {
-        qDebug() << "UL_ERROR!";
-        qDebug() << reply->errorString();
-        doUpload();
-    }
-    else
-    {
-//        qDebug() << reply->header(QNetworkRequest::ContentTypeHeader).toString();
-//        qDebug() << reply->header(QNetworkRequest::LastModifiedHeader).toDateTime().toString();
-//        qDebug() << reply->header(QNetworkRequest::ContentLengthHeader).toULongLong();
-//        qDebug() << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-//        qDebug() << reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString();
-
-        QString line = reply->readLine();
-        process_line(line);
-        if(reply->atEnd()){
-            qDebug() << "@End_UL";
-            //////--> If del_pic_list.txt is uploaded, cron job will delete pic_list. Only if a new pic is send, a new list will be created
-            ///       That's how the server queries produce nearly no traffic.
+        if(dataThereFlag == true)
+        {
+            emit success();
+            dataThereFlag = false;
         }
+        qDebug() << "Downloads finished";
     }
-    file2->close();
-    reply->deleteLater();
-}
-
-void Downloader::process_line(QString ln){
-    //QString url = QLatin1String(ln);
-    int loop_cnt = 0;
-
-    if(ln.length()> 2){
-        if(ln.startsWith("@")){
-            ln.remove(0,1);
-            functionality = new Functionality(ln);
-            functionality->moveToThread(&functionalityThread);
-            functionalityThread.start();
-            //Upload file or delete file or sth ...
-            return;
-        }
-        while(!(ln.endsWith(".jpg"))){
-            ln.chop(1);
-            loop_cnt++;
-            if(loop_cnt > 100)
-                return;
-//            return 1; //Potential error
-        }
-        ln.remove(0,19);
-        fn = ln;
-        QTimer::singleShot(200, this, SLOT(doDownload(ln)));
-         ////Download file with chopped filename
-        qDebug() << ln;
-    }
-
+    //        // all downloads finished
+    //        QCoreApplication::instance()->quit();
 }

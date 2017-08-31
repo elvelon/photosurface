@@ -5,16 +5,14 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
-#include <QTimer>
 
 class Ping : public QObject
 {
     Q_OBJECT
 public:
-    explicit Ping(QObject *parent = 0);
+    explicit Ping(QObject *parent=Q_NULLPTR);
 
 private:
-    QTimer timer;
     QNetworkAccessManager manager;
 
 
@@ -22,6 +20,7 @@ signals:
 
 public slots:
     void onPing();
+    void deletePicList();
     void dl_replyFinished (QNetworkReply *reply);
 };
 

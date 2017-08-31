@@ -2,49 +2,56 @@
 #define DOWNLOADER_H
 
 #include <QObject>
-#include <QThread>
+#include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
+#include <QList>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QSslError>
+#include <QStringList>
 #include <QStandardPaths>
-#include <QUrl>
-#include <QDateTime>
-#include <QFile>
-#include <QDebug>
 #include <QTimer>
+#include <QUrl>
 
-#include "functionality.h"
+#include <stdio.h>
+
+QT_BEGIN_NAMESPACE
+class QSslError;
+QT_END_NAMESPACE
+
+QT_USE_NAMESPACE
 
 class Downloader : public QObject
 {
     Q_OBJECT
-public:
-    explicit Downloader(QObject *parent = 0);
+    QNetworkAccessManager manager;
+    QList<QNetworkReply *> currentDownloads;
 
-    void doUpload();
-    void process_line(QString ln);
-    Functionality * functionality;
+public:
+    explicit Downloader();
+    void doDownload(const QUrl &url);
+    QString saveFileName(const QUrl &url);
+    bool saveToDisk(const QString &filename, QIODevice *data);
+    void processPicList(QIODevice *data);
+    void downloadRepeater(QStringList args);
 
 signals:
+    void success();
 
 public slots:
-    void doDownload(QString url = "");
-    void dl_replyFinished (QNetworkReply *reply);
-    void pic_replyFinished (QNetworkReply *reply);
-    void ul_replyFinished (QNetworkReply *reply);
+    void execute();
+    void downloadFinished(QNetworkReply *reply);
+    void sslErrors(const QList<QSslError> &errors);
 
 private:
-   qint8 list_there_flag;
-   qint8 end_pic_list_flag;
-   qint16 line_cnt;
-   QString fn;
-   QTimer *timer;
-   QFile *file2;
-   QNetworkAccessManager *manager;
-   QNetworkAccessManager *pic_manager;
-   QFile *file;
-   QList<QString> file_lst;
-   QThread functionalityThread;
+    QString ftpUrl;
+    QString user;
+    bool dataThereFlag;
+    QTimer timer;
+//    QString password;
 };
+
 
 #endif // DOWNLOADER_H

@@ -5,14 +5,16 @@ Ping::Ping(QObject *parent) : QObject(parent)
 {
     connect(&manager, SIGNAL(finished(QNetworkReply*)),
             this, SLOT(dl_replyFinished(QNetworkReply*)));
-
-    connect(&timer, SIGNAL(timeout()), this, SLOT(onPing()));
-    timer.start(1000); //start quick
 }
 
 void Ping::onPing()
 {
     manager.get(QNetworkRequest(QUrl("http://www.reha-daheim.de/GrannysGallery/attach_extract.php")));   //Opti
+}
+
+void Ping::deletePicList()
+{
+    manager.get(QNetworkRequest(QUrl("http://www.reha-daheim.de/GrannysGallery/deletePiclist.php")));   //Dopti
 }
 
 void Ping::dl_replyFinished (QNetworkReply *reply)
@@ -31,6 +33,5 @@ void Ping::dl_replyFinished (QNetworkReply *reply)
             qDebug() << "@End_LIST";
         }
     }
-    timer.start(60000);
     reply->deleteLater();
 }

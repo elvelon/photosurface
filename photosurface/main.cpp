@@ -96,18 +96,16 @@ int main(int argc, char* argv[])
     parser.process(app);
 
     //Start Downloader!
-    QThread downloadthread;
-    QThread pingthread;
-    Downloader *d = new Downloader;
-    QObject::connect(&downloadthread, &QThread::finished, d, &QObject::deleteLater);
-    d->moveToThread(&downloadthread);
-    downloadthread.start();
+    Downloader d;
+    QTimer::singleShot(30000, &d, SLOT(execute()));
 
 //    PingScript ping;
-    Ping *ping = new Ping;
-    QObject::connect(&pingthread, &QThread::finished, ping, &QObject::deleteLater);
-    d->moveToThread(&pingthread);
-    pingthread.start();
+    Ping ping;
+    QTimer *timerPing = new QTimer();
+    QObject::connect(timerPing, SIGNAL(timeout()), &ping, SLOT(onPing()));
+    timerPing->start(60000);
+
+    QObject::connect(&d, &Downloader::success, &ping, &Ping::deletePicList);
 
     QUrl initialUrl;
     if (!parser.positionalArguments().isEmpty()) {
