@@ -56,19 +56,55 @@
 #include <QStandardPaths>
 #include <QtCore/QUrl>
 #include <QThread>
+#include <QDateTime>
 
 #include "downloader.h"
 #include "ping.h"
 
-static QStringList imageNameFilters()
+static QStringList imageNameFilters(QUrl pic_location)
 {
+    QStringList rawSortedList;
     QStringList result;
-    QMimeDatabase mimeDatabase;
-    foreach (const QByteArray &m, QImageReader::supportedMimeTypes()) {
-        foreach (const QString &suffix, mimeDatabase.mimeTypeForName(m).suffixes())
-            result.append(QStringLiteral("*.") + suffix);
-//            qDebug() << result;
+    QDir dir(pic_location.toString());
+    QString now = "*" + QDateTime::currentDateTime().toString("yyyy_MM_dd") + "*";
+
+    //raw list
+    QStringList basicFilter;
+    basicFilter << "*.jpg";
+    rawSortedList = dir.entryList(basicFilter, QDir::Files, QDir::Name);
+
+    //now files
+    QStringList filter;
+    QStringList filteredDir;
+
+    filter << now;
+    filteredDir<< dir.entryList(filter, QDir::Files, QDir::Name);
+
+    for (int i = 0; i < filteredDir.size(); i++)
+    {
+        QString fn = dir.relativeFilePath(filteredDir.at(i));
+        result << fn;
+        rawSortedList.removeLast();
     }
+
+    //15 most recent
+    int j = 15;
+    while(rawSortedList.size() && (j--))
+    {
+        result << dir.relativeFilePath(rawSortedList.last());
+        rawSortedList.removeLast();
+    }
+
+    //25 random
+    int k = 25;
+    while(rawSortedList.size() && (k--))
+    {
+        int index = qrand() % rawSortedList.size();
+        result << dir.relativeFilePath(rawSortedList.at(index));
+        rawSortedList.removeAt(index);
+    }
+
+    qDebug() << "Nr. of pics: " << result.size();
     return result;
 }
 
@@ -105,6 +141,11 @@ int main(int argc, char* argv[])
     QObject::connect(timerPing, SIGNAL(timeout()), &ping, SLOT(onPing()));
     timerPing->start(60000);
 
+    //actualize nameFilter every 10 minutes, to catch daychange.
+//    QTimer *timerFilter = new QTimer();
+//    QObject::connect(timerFilter, &QTimer::timeout()), this, &app::));
+//    timerFilter->start(600000);
+
     QObject::connect(&d, &Downloader::success, &ping, &Ping::deletePicList);
 
     QUrl initialUrl;
@@ -119,12 +160,13 @@ int main(int argc, char* argv[])
         }
     }
 
-    const QStringList nameFilters = imageNameFilters();
     QQmlApplicationEngine engine;
     QQmlContext *context = engine.rootContext();
 
     QUrl picturesLocationUrl = QUrl::fromLocalFile(QDir::homePath());
     const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+    const QStringList nameFilters = imageNameFilters(picturesLocations.first());
+
     if (!picturesLocations.isEmpty()) {
         picturesLocationUrl = QUrl::fromLocalFile(picturesLocations.first());
         if (initialUrl.isEmpty()

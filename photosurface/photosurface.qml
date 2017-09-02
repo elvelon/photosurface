@@ -112,53 +112,15 @@ Window {
 
         onCurrentItemChanged:  {
             console.debug(grid16.currentIndex);
-//            if ((grid16.currentIndex == grid16.count-1) && (slideshow == false)){
-//                if(jumptozerointent == false){
-//                    jumptozerointent = true;
-//                }
-//            }
         }
 
-        onMovingChanged: {
-//            if ((jumptozerointent == true) && (grid16.currentIndex == grid16.count-1) && (jumptozero == false)) {
-//                jumptozero = true;
-//            }else if ((jumptozerointent == true) && (grid16.currentIndex == grid16.count-1) && (jumptozero == true)){
-//                jumptozerointent = false;
-//                jumptozero = false;
-//                grid16.positionViewAtBeginning(); // --> can not be called in this signal
-//            }
-
-//            console.debug("changed");
-        }
+        onMovingChanged: { }
 
 
         onFlickStarted: {
             slideshow = false;
             nix_time.restart();
         }
-        //            if (grid16.currentIndex == grid16.count-1){
-        //                jumptozero = true;
-        //                console.debug("ended");
-        //            }else if (grid16.currentIndex == 0){
-        //                jumptoend = true;
-        //            }
-        //            console.debug(grid16.currentIndex);
-
-        //        }
-        //        onFlickEnded: {
-        //            if ((grid16.currentIndex == grid16.count-1) && (jumptozero)){
-        //                grid16.positionViewAtBeginning();
-        //                jumptozero = false;
-        //                console.debug("ended0");
-        //            }else if ((grid16.currentIndex == 0) && (jumptoend)){
-        //                grid16.positionViewAtEnd();
-        ////                grid16.currentIndex = 0;
-        //                jumptoend = false;
-        //                console.debug("ended0");
-        //            }
-
-        ////
-        //        }
 
         FolderListModel {
             id: folderModel
@@ -218,11 +180,6 @@ Window {
             // Launched from C++ with context properties set.
             imageNameFilters = contextImageNameFilters;
             picturesLocation = contextPicturesLocation;
-            //            console.debug(picturesLocation);
-            //            console.debug(contextInitialUrl);
-            //            if (contextInitialUrl == "")
-            //                //fileDialog.open();
-            ////            else
             folderModel.folder = picturesLocation + "/";
         } else {
             // Launched via QML viewer without context properties set.
@@ -231,6 +188,6 @@ Window {
 
     }
 
-    property var imageNameFilters : ["*.png", "*.jpg", "*.gif", "*2017*"];
+    property var imageNameFilters : [];
     property string picturesLocation : "";
 }
