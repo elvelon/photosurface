@@ -5,7 +5,8 @@ qtHaveModule(widgets): QT += widgets
 SOURCES += main.cpp \
     downloader.cpp \
     functionality.cpp \
-    ping.cpp
+    ping.cpp \
+    imagecontext.cpp
 RESOURCES += photosurface.qrc
 
 target.path = $$[QT_INSTALL_EXAMPLES]/quick/demos/photosurface
@@ -17,7 +18,8 @@ win32: RC_FILE = resources/photosurface.rc
 HEADERS += \
     downloader.h \
     functionality.h \
-    ping.h
+    ping.h \
+    imagecontext.h
 
 DISTFILES += \
     android/AndroidManifest.xml \

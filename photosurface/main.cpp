@@ -47,66 +47,11 @@
 #include <QtQml/QQmlContext>
 #include <QtQuick/QQuickWindow>
 #include <QtGui/QImageReader>
-#include <QtCore/QCommandLineParser>
-#include <QtCore/QCommandLineOption>
-#include <QtCore/QDebug>
-#include <QtCore/QDir>
 #include <QtCore/QMimeDatabase>
-#include <QtCore/QStandardPaths>
-#include <QStandardPaths>
-#include <QtCore/QUrl>
-#include <QThread>
-#include <QDateTime>
 
 #include "downloader.h"
 #include "ping.h"
-
-static QStringList imageNameFilters(QUrl pic_location)
-{
-    QStringList rawSortedList;
-    QStringList result;
-    QDir dir(pic_location.toString());
-    QString now = "*" + QDateTime::currentDateTime().toString("yyyy_MM_dd") + "*";
-
-    //raw list
-    QStringList basicFilter;
-    basicFilter << "*.jpg";
-    rawSortedList = dir.entryList(basicFilter, QDir::Files, QDir::Name);
-
-    //now files
-    QStringList filter;
-    QStringList filteredDir;
-
-    filter << now;
-    filteredDir<< dir.entryList(filter, QDir::Files, QDir::Name);
-
-    for (int i = 0; i < filteredDir.size(); i++)
-    {
-        QString fn = dir.relativeFilePath(filteredDir.at(i));
-        result << fn;
-        rawSortedList.removeLast();
-    }
-
-    //15 most recent
-    int j = 15;
-    while(rawSortedList.size() && (j--))
-    {
-        result << dir.relativeFilePath(rawSortedList.last());
-        rawSortedList.removeLast();
-    }
-
-    //25 random
-    int k = 25;
-    while(rawSortedList.size() && (k--))
-    {
-        int index = qrand() % rawSortedList.size();
-        result << dir.relativeFilePath(rawSortedList.at(index));
-        rawSortedList.removeAt(index);
-    }
-
-    qDebug() << "Nr. of pics: " << result.size();
-    return result;
-}
+#include "imagecontext.h"
 
 int main(int argc, char* argv[])
 {
@@ -121,15 +66,8 @@ int main(int argc, char* argv[])
     QQuickWindow::setDefaultAlphaBuffer(true);
 
     QCoreApplication::setApplicationName(QStringLiteral("Photosurface"));
-    QCoreApplication::setOrganizationName(QStringLiteral("QtProject"));
+    QCoreApplication::setOrganizationName(QStringLiteral("k__h"));
     QCoreApplication::setApplicationVersion(QLatin1String(QT_VERSION_STR));
-    QCommandLineParser parser;
-    parser.setApplicationDescription(QStringLiteral("OmaPro"));
-    parser.addHelpOption();
-    parser.addVersionOption();
-    parser.addPositionalArgument(QStringLiteral("directory"),
-                                 QStringLiteral("The image directory or URL to show."));
-    parser.process(app);
 
     //Start Downloader!
     Downloader d;
@@ -148,36 +86,14 @@ int main(int argc, char* argv[])
 
     QObject::connect(&d, &Downloader::success, &ping, &Ping::deletePicList);
 
-    QUrl initialUrl;
-    if (!parser.positionalArguments().isEmpty()) {
-        initialUrl = QUrl::fromUserInput(parser.positionalArguments().first(),
-                                         QStandardPaths::writableLocation(QStandardPaths::DownloadLocation), QUrl::AssumeLocalFile);
-//          initialUrl = QUrl::path(QStandardPaths)  QDir::setPath(QStandardPaths::DownloadLocation);
-        if (!initialUrl.isValid()) {
-            qWarning().nospace() << "Invalid argument: \""
-                << parser.positionalArguments().first() << "\": " << initialUrl.errorString();
-            return 1;
-        }
-    }
-
     QQmlApplicationEngine engine;
     QQmlContext *context = engine.rootContext();
 
-    QUrl picturesLocationUrl = QUrl::fromLocalFile(QDir::homePath());
-    const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
-    const QStringList nameFilters = imageNameFilters(picturesLocations.first());
-
-    if (!picturesLocations.isEmpty()) {
-        picturesLocationUrl = QUrl::fromLocalFile(picturesLocations.first());
-        if (initialUrl.isEmpty()
-            && !QDir(picturesLocations.first()).entryInfoList(nameFilters, QDir::Files).isEmpty()) {
-            initialUrl = picturesLocationUrl;
-        }
-    }
-
-    context->setContextProperty(QStringLiteral("contextPicturesLocation"), picturesLocationUrl);
-    context->setContextProperty(QStringLiteral("contextInitialUrl"), initialUrl);
-    context->setContextProperty(QStringLiteral("contextImageNameFilters"), nameFilters);
+    ImageContext img_con;
+    img_con.setContext(context);
+    QTimer *timerContext = new QTimer();
+    QObject::connect(timerContext, SIGNAL(timeout()), &img_con, SLOT(onUpdateContext()));
+    timerContext->start(360000); //every hour
 
     engine.load(QUrl("qrc:///photosurface.qml"));
     if (engine.rootObjects().isEmpty())
