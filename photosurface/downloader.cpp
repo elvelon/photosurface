@@ -2,15 +2,14 @@
 #include <QDebug>
 #include <QThread>
 
-Downloader::Downloader()
+Downloader::Downloader(QString user)  :
+    m_user(user)
 {
     dataThereFlag = false;
     connect(&manager, SIGNAL(finished(QNetworkReply*)),
             SLOT(downloadFinished(QNetworkReply*)));
-    user = "oma";
     ftpUrl = "ftp://rehad951:1qay!QAY@ftp.reha-daheim.de";
     QObject::connect(&timer, &QTimer::timeout, this, &Downloader::execute);
-    timer.start(60000);
 }
 
 void Downloader::doDownload(const QUrl &url)
@@ -62,10 +61,12 @@ bool Downloader::saveToDisk(const QString &filename, QIODevice *data)
 
 void Downloader::execute()
 {
-    QString pic_list = ftpUrl + "/private/pics/" + user + "/pic_list.txt";
+    QString pic_list = ftpUrl + "/private/pics/" + m_user + "/pic_list.txt";
 
     QUrl url = QUrl::fromEncoded(pic_list.toLocal8Bit());
     doDownload(url);
+    if(!timer.isActive())
+        timer.start(60000);
 }
 
 void Downloader::downloadRepeater(QStringList args)

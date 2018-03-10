@@ -68,8 +68,15 @@ Window {
     property bool jumptoend: true
 
     //UX PARAMETERS -> TO CONFIGURE Application
-    property int wait_before_slide_show: 45000
-    property int slide_duration: 15000
+    property int wait_before_slide_show: 15000
+    property int slide_duration: 18000
+
+    MouseArea {
+      anchors.fill: parent
+      enabled: false
+      cursorShape: Qt.BlankCursor
+
+    }
 
     Timer {
         id:nix_time
@@ -88,7 +95,8 @@ Window {
         onTriggered: {
             if(slideshow){
                 if (grid16.currentIndex < grid16.count-1){
-                    grid16.currentIndex++;
+//                    grid16.currentIndex++; //with nice transition!
+                    grid16.positionViewAtIndex(grid16.currentIndex++, ListView.SnapPosition); //without transition
                 }else{
                     grid16.positionViewAtBeginning();
                 }
@@ -121,6 +129,10 @@ Window {
             slideshow = false;
             nix_time.restart();
         }
+
+//        Behavior on x {
+//             NumberAnimation { duration: 100; to: grid16.currentIndex}
+//         }
 
         FolderListModel {
             id: folderModel
@@ -187,6 +199,16 @@ Window {
         }
 
     }
+
+    Binding { target: folderModel; property: "nameFilters"; value: img_con.nameFiltersAct }
+
+//    Connections {
+//        target: downloader
+//        onSuccess: {
+//            folderModel.nameFilters = contextImageNameFilters;
+//            console.log("The application data changed!");
+//        }
+//    }
 
     property var imageNameFilters : [];
     property string picturesLocation : "";

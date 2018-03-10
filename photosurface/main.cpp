@@ -48,10 +48,12 @@
 #include <QtQuick/QQuickWindow>
 #include <QtGui/QImageReader>
 #include <QtCore/QMimeDatabase>
+#include <QDebug>
 
 #include "downloader.h"
 #include "ping.h"
 #include "imagecontext.h"
+#include "argumentparser.h"
 
 int main(int argc, char* argv[])
 {
@@ -65,12 +67,31 @@ int main(int argc, char* argv[])
 #endif
     QQuickWindow::setDefaultAlphaBuffer(true);
 
-    QCoreApplication::setApplicationName(QStringLiteral("Photosurface"));
+    QCoreApplication::setApplicationName(QStringLiteral("OmasKino"));
     QCoreApplication::setOrganizationName(QStringLiteral("k__h"));
     QCoreApplication::setApplicationVersion(QLatin1String(QT_VERSION_STR));
 
+    QStringList options;
+    QStringList parameter;
+    QString m_user = "";
+
+    parameter << "user";
+
+    ArgumentParser *arguments = new ArgumentParser(options, parameter);
+
+    if(arguments->paramExists("user"))
+    {
+        m_user = arguments->param("user");
+        qDebug() << "User=" << m_user;
+    }
+    else
+    {
+        qDebug() << "Please call with -user=XXX argument";
+        return -1;
+    }
+
     //Start Downloader!
-    Downloader d;
+    Downloader d(m_user);
     QTimer::singleShot(30000, &d, SLOT(execute()));
 
 //    PingScript ping;
@@ -79,11 +100,6 @@ int main(int argc, char* argv[])
     QObject::connect(timerPing, SIGNAL(timeout()), &ping, SLOT(onPing()));
     timerPing->start(60000);
 
-    //actualize nameFilter every 10 minutes, to catch daychange.
-//    QTimer *timerFilter = new QTimer();
-//    QObject::connect(timerFilter, &QTimer::timeout()), this, &app::));
-//    timerFilter->start(600000);
-
     QObject::connect(&d, &Downloader::success, &ping, &Ping::deletePicList);
 
     QQmlApplicationEngine engine;
@@ -91,9 +107,13 @@ int main(int argc, char* argv[])
 
     ImageContext img_con;
     img_con.setContext(context);
+    context->setContextProperty(("img_con"), &img_con); //Could be all run over this context.
+
     QTimer *timerContext = new QTimer();
     QObject::connect(timerContext, SIGNAL(timeout()), &img_con, SLOT(onUpdateContext()));
     timerContext->start(360000); //every hour
+
+    QObject::connect(&d, SIGNAL(success()), &img_con, SLOT(onUpdateContext()));
 
     engine.load(QUrl("qrc:///photosurface.qml"));
     if (engine.rootObjects().isEmpty())

@@ -30,7 +30,7 @@ class Downloader : public QObject
     QList<QNetworkReply *> currentDownloads;
 
 public:
-    explicit Downloader();
+    explicit Downloader(QString user);
     void doDownload(const QUrl &url);
     QString saveFileName(const QUrl &url);
     bool saveToDisk(const QString &filename, QIODevice *data);
@@ -47,7 +47,7 @@ public slots:
 
 private:
     QString ftpUrl;
-    QString user;
+    QString m_user;
     bool dataThereFlag;
     QTimer timer;
 //    QString password;
