@@ -1,15 +1,32 @@
 #include "downloader.h"
 #include <QDebug>
 #include <QThread>
+#include <QString>
 
-Downloader::Downloader(QString user)  :
+Downloader::Downloader(QString user, QString url)  :
     m_user(user)
 {
     dataThereFlag = false;
     connect(&manager, SIGNAL(finished(QNetworkReply*)),
-            SLOT(downloadFinished(QNetworkReply*)));
-    ftpUrl = "ftp://rehad951:1qay!QAY@ftp.reha-daheim.de";
-    QObject::connect(&timer, &QTimer::timeout, this, &Downloader::execute);
+            SLOT(onNetworkReplyAvailable(QNetworkReply*)));
+    ftpUrl = url;
+    QObject::connect(&timer, &QTimer::timeout, this, &Downloader::timedDownloadExecution);
+    QObject::connect(this, &Downloader::startQueuedDownload, this, &Downloader::doDownload);
+}
+
+void Downloader::timedDownloadExecution()
+{
+    QString pic_list = ftpUrl + "/private/pics/" + m_user + "/pic_list.txt";
+
+    QUrl url = QUrl::fromEncoded(pic_list.toLocal8Bit());
+    if (ListOfPicUrlsReadyToDownload.isEmpty())
+    {
+        doDownload(url);
+    }
+    if(!timer.isActive())
+    {
+        timer.start(60000);
+    }
 }
 
 void Downloader::doDownload(const QUrl &url)
@@ -21,11 +38,51 @@ void Downloader::doDownload(const QUrl &url)
 #ifndef QT_NO_SSL
     connect(reply, SIGNAL(sslErrors(QList<QSslError>)), SLOT(sslErrors(QList<QSslError>)));
 #endif
-
-    currentDownloads.append(reply);
 }
 
-QString Downloader::saveFileName(const QUrl &url)
+void Downloader::sslErrors(const QList<QSslError> &sslErrors)
+{
+#ifndef QT_NO_SSL
+    foreach (const QSslError &error, sslErrors)
+    {
+        emit logToFile(QString("SSL error: %1\n")
+                          .arg(qPrintable(error.errorString())));
+    }
+#else
+    Q_UNUSED(sslErrors);
+#endif
+}
+
+void Downloader::onNetworkReplyAvailable(QNetworkReply *reply)
+{
+    if (reply->error())
+    {
+        emit logToFile(QString("Download of %1 failed: %2\n")
+                          .arg(reply->url().toEncoded().constData())
+                           .arg(qPrintable(reply->errorString())));
+        return;
+    }
+
+    QString filename = extractFileNameFromReply(reply->url());
+    if(filename == "")
+    {
+        return;
+    }
+
+    handlePayloadOfReply(reply, filename);
+
+    if(ListOfPicUrlsReadyToDownload.isEmpty())
+    {
+        emit allAvailableDownloadsHandled();
+        emit logToFile("Downloads finished");
+    }
+    else{
+        emit startQueuedDownload(QUrl::fromEncoded(ListOfPicUrlsReadyToDownload.last().toLocal8Bit()));
+    }
+    reply->deleteLater();
+}
+
+QString Downloader::extractFileNameFromReply(const QUrl &url)
 {
     QString path = url.path();
     QString basename = QFileInfo(path).fileName();
@@ -37,102 +94,72 @@ QString Downloader::saveFileName(const QUrl &url)
         return "pic_list.txt";
 
     if (QFile::exists(basename)) {
-        qDebug() << basename << "already exists";
+
+        emit logToFile(QString("%1 already exists").arg(basename));
         return "";
     }
     return basename;
 }
 
-bool Downloader::saveToDisk(const QString &filename, QIODevice *data)
+void Downloader::handlePayloadOfReply(QNetworkReply *reply, QString filename)
 {
-    //    QFile  file(filename);
+    if(fileIsPicList(filename))
+    {
+        ListOfPicUrlsReadyToDownload = processPicList(reply);
+    }
+    else
+    {
+        saveImageFromReplyToDisk(filename, reply);
+        ListOfPicUrlsReadyToDownload.removeFirst();
+    }
+}
+
+bool Downloader::fileIsPicList(const QString fn)
+{
+    return fn == "pic_list.txt";
+}
+
+QStringList Downloader::processPicList(QIODevice *data){
+    QStringList pic_urls;
+    char buf[1024];
+    while(data->canReadLine())
+    {
+        int nr_of_chars_read = data->readLine(buf, sizeof(buf));
+        QString check(buf);
+        if(check.startsWith("rm "))
+        {
+            deletePicture(QString::fromLocal8Bit(buf, nr_of_chars_read-1).mid(3));
+            continue;
+        }
+        pic_urls << ftpUrl + QString::fromLocal8Bit(buf, nr_of_chars_read-1);
+        qDebug() << pic_urls;
+
+    }
+    return pic_urls;
+}
+
+void Downloader::deletePicture(QString fn)
+{
+    emit logToFile(QString("deleting file: %1").arg(fn));
+    QFile file (fn);
+    if(file.exists())
+        file.remove();
+}
+
+bool Downloader::saveImageFromReplyToDisk(const QString &filename, QIODevice *data)
+{
     QFile file(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/" + filename);
     if (!file.open(QIODevice::WriteOnly)) {
-        qDebug() << "Could not open " << qPrintable(filename)
-                 <<" for writing: " << qPrintable(file.errorString()) << "\n";
+        emit logToFile(QString("Could not open %1 for writing: %2\n")
+                       .arg(qPrintable(filename))
+                       .arg(qPrintable(file.errorString())));
         return false;
     }
 
     file.write(data->readAll());
     file.close();
 
+    emit logToFile(QString("Download of %1 succeeded.")
+                   .arg(qPrintable(filename)));
     return true;
-}
-
-void Downloader::execute()
-{
-    QString pic_list = ftpUrl + "/private/pics/" + m_user + "/pic_list.txt";
-
-    QUrl url = QUrl::fromEncoded(pic_list.toLocal8Bit());
-    doDownload(url);
-    if(!timer.isActive())
-        timer.start(60000);
-}
-
-void Downloader::downloadRepeater(QStringList args)
-{
-    foreach (QString arg, args) {
-        QUrl url = QUrl::fromEncoded(arg.toLocal8Bit());
-        doDownload(url);
-    }
-}
-
-
-void Downloader::processPicList(QIODevice *data){
-    QStringList pic_urls;
-    char buf[1024];
-    while(data->canReadLine())
-    {
-        int nr_of_chars_read = data->readLine(buf, sizeof(buf));
-        pic_urls << ftpUrl + QString::fromLocal8Bit(buf, nr_of_chars_read-1);
-        qDebug() << pic_urls;
-    }
-    downloadRepeater(pic_urls);
-}
-
-void Downloader::sslErrors(const QList<QSslError> &sslErrors)
-{
-#ifndef QT_NO_SSL
-    foreach (const QSslError &error, sslErrors)
-        qDebug() << "SSL error: " << qPrintable(error.errorString()) << "\n";
-#else
-    Q_UNUSED(sslErrors);
-#endif
-}
-
-void Downloader::downloadFinished(QNetworkReply *reply)
-{
-    QUrl url = reply->url();
-    if (reply->error()) {
-        qDebug() << "Download of " << url.toEncoded().constData() << " failed: "
-                 << qPrintable(reply->errorString()) << "\n";
-    } else {
-        QString filename = saveFileName(url);
-        if((filename != "") && (filename != "pic_list.txt"))
-        {
-            if (saveToDisk(filename, reply))
-            {
-                qDebug() << "Download of"  << qPrintable(filename) << "succeeded";
-            }
-        }else if(filename == "pic_list.txt")
-        {
-            processPicList(reply);
-        }
-        dataThereFlag = true;
-    }
-
-    currentDownloads.removeAll(reply);
-    reply->deleteLater();
-
-    if (currentDownloads.isEmpty())
-    {
-        if(dataThereFlag == true)
-        {
-            emit success();
-            dataThereFlag = false;
-        }
-        qDebug() << "Downloads finished";
-    }
-    //        // all downloads finished
-    //        QCoreApplication::instance()->quit();
 }

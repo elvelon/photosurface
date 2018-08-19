@@ -17,6 +17,7 @@ private:
 
 
 signals:
+    void logToFile(QString);
 
 public slots:
     void onPing();

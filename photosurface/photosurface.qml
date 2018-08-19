@@ -45,7 +45,12 @@ import Qt.labs.folderlistmodel 1.0
 Window {
     id: root
     visible: true
-    width: 1024; height: 768
+    height: Screen.desktopAvailableHeight;
+    width: Screen.desktopAvailableWidth;
+    maximumHeight: root.height;
+    maximumWidth: root.width
+    minimumHeight: root.height
+    minimumWidth    : root.width
     color: "black"
     property int highestZ: 0
     property real defaultSize: root.width - 40
@@ -153,8 +158,8 @@ Window {
                 //            width: 490; height: 490; source: value;
                 width: root.width;
                 height: root.height;
+                fillMode: Image.PreserveAspectFit;
                 source: folderModel.folder + fileName;
-                fillMode: Image.PreserveAspectFit
                 antialiasing: false
                 autoTransform: true
                 Component.onCompleted: {

@@ -7,7 +7,8 @@ SOURCES += main.cpp \
     functionality.cpp \
     ping.cpp \
     imagecontext.cpp \
-    argumentparser.cpp
+    argumentparser.cpp \
+    filelogger.cpp
 RESOURCES += photosurface.qrc
 
 target.path = $$[QT_INSTALL_EXAMPLES]/quick/demos/photosurface
@@ -21,7 +22,8 @@ HEADERS += \
     functionality.h \
     ping.h \
     imagecontext.h \
-    argumentparser.h
+    argumentparser.h \
+    filelogger.h
 
 DISTFILES += \
     android/AndroidManifest.xml \

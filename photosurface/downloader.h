@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QTextStream>
 #include <QUrl>
 
 #include <stdio.h>
@@ -27,27 +28,35 @@ class Downloader : public QObject
 {
     Q_OBJECT
     QNetworkAccessManager manager;
-    QList<QNetworkReply *> currentDownloads;
 
 public:
-    explicit Downloader(QString user);
-    void doDownload(const QUrl &url);
-    QString saveFileName(const QUrl &url);
-    bool saveToDisk(const QString &filename, QIODevice *data);
-    void processPicList(QIODevice *data);
-    void downloadRepeater(QStringList args);
+    explicit Downloader(QString user, QString url);
 
 signals:
-    void success();
+    void allAvailableDownloadsHandled();
+    void startQueuedDownload(QUrl);
+    void logToFile(QString);
 
 public slots:
-    void execute();
-    void downloadFinished(QNetworkReply *reply);
+    void timedDownloadExecution();
+    void onNetworkReplyAvailable(QNetworkReply *reply);
     void sslErrors(const QList<QSslError> &errors);
 
+private slots:
+    void doDownload(const QUrl &url);
+
 private:
+    bool fileIsPicList(const QString fn);
+    void deletePicture(QString fn);
+    void extractFilenameFromReply(QNetworkReply *reply);
+    bool fileIsValidPicList(const QString fn);
+    void handlePayloadOfReply(QNetworkReply *reply, QString filename);
+    QString extractFileNameFromReply(const QUrl &url);
+    bool saveImageFromReplyToDisk(const QString &filename, QIODevice *data);
+    QStringList processPicList(QIODevice *data);
     QString ftpUrl;
     QString m_user;
+    QStringList  ListOfPicUrlsReadyToDownload;
     bool dataThereFlag;
     QTimer timer;
 //    QString password;
