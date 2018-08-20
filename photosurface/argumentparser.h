@@ -1,3 +1,10 @@
+/****************************************************************************
+**
+** Copyright Kai Hinderer
+** Contact: kai.hinderer|AT|gmail.com
+**
+****************************************************************************/
+
 #ifndef ARGUMENTPARSER_H
 #define ARGUMENTPARSER_H
 

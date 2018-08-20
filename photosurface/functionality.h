@@ -1,3 +1,10 @@
+/****************************************************************************
+**
+** Copyright Kai Hinderer
+** Contact: kai.hinderer|AT|gmail.com
+**
+****************************************************************************/
+
 #ifndef FUNCTIONALITY_H
 #define FUNCTIONALITY_H
 

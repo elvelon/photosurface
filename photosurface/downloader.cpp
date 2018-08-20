@@ -1,3 +1,10 @@
+/****************************************************************************
+**
+** Copyright Kai Hinderer
+** Contact: kai.hinderer|AT|gmail.com
+**
+****************************************************************************/
+
 #include "downloader.h"
 #include <QDebug>
 #include <QThread>
@@ -35,6 +42,9 @@ void Downloader::doDownload(const QUrl &url)
     QNetworkReply *reply;
     reply = manager.get(request);
 
+    emit logToFile(QString("Starting Request to: %1")
+                      .arg(url.toString()));
+
 #ifndef QT_NO_SSL
     connect(reply, SIGNAL(sslErrors(QList<QSslError>)), SLOT(sslErrors(QList<QSslError>)));
 #endif
@@ -62,13 +72,13 @@ void Downloader::onNetworkReplyAvailable(QNetworkReply *reply)
                            .arg(qPrintable(reply->errorString())));
         return;
     }
-
+    emit logToFile("Extracting Filename");
     QString filename = extractFileNameFromReply(reply->url());
     if(filename == "")
     {
         return;
     }
-
+    emit logToFile("Handle Payload of Reply");
     handlePayloadOfReply(reply, filename);
 
     if(ListOfPicUrlsReadyToDownload.isEmpty())

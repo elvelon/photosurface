@@ -11,8 +11,7 @@ SOURCES += main.cpp \
     filelogger.cpp
 RESOURCES += photosurface.qrc
 
-target.path = $$[QT_INSTALL_EXAMPLES]/quick/demos/photosurface
-INSTALLS += target
+TARGET = photosurface
 ICON = resources/icon.png
 macx: ICON = resources/photosurface.icns
 win32: RC_FILE = resources/photosurface.rc

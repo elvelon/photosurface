@@ -1,3 +1,10 @@
+/****************************************************************************
+**
+** Copyright Kai Hinderer
+** Contact: kai.hinderer|AT|gmail.com
+**
+****************************************************************************/
+
 #ifndef IMAGECONTEXT_H
 #define IMAGECONTEXT_H
 

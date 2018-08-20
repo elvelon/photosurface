@@ -1,3 +1,10 @@
+/****************************************************************************
+**
+** Copyright Kai Hinderer
+** Contact: kai.hinderer|AT|gmail.com
+**
+****************************************************************************/
+
 #include "filelogger.h"
 #include <QTextStream>
 #include <QDateTime>

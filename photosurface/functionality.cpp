@@ -1,6 +1,11 @@
+/****************************************************************************
+**
+** Copyright Kai Hinderer
+** Contact: kai.hinderer|AT|gmail.com
+**
+****************************************************************************/
+
 #include "functionality.h"
-
-
 
 Functionality::Functionality(QString ln, QObject *parent) : QObject(parent)
 {
