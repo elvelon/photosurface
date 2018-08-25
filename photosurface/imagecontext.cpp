@@ -19,7 +19,37 @@ ImageContext::ImageContext(QObject *parent) : QObject(parent)
 
 }
 
-QStringList ImageContext::imageNameFilters(QUrl pic_location)
+void ImageContext::onUpdateContext(void)
+{
+    setContext(app_context);
+}
+
+QStringList ImageContext::setContext(QQmlContext* context)
+{
+    app_context = context;
+    QUrl picturesLocationUrl = QUrl::fromLocalFile(QDir::homePath());
+    const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+    const QStringList imagesToShow = getFilteredImageChoice(picturesLocations.first());
+
+    if (!picturesLocations.isEmpty()) {
+        picturesLocationUrl = QUrl::fromLocalFile(picturesLocations.first());
+        if (!QDir(picturesLocations.first()).entryInfoList(imagesToShow, QDir::Files).isEmpty())
+        {
+            QUrl initialUrl = picturesLocationUrl;
+            app_context->setContextProperty(QStringLiteral("contextInitialUrl"), initialUrl);
+        }else
+        {
+            app_context->setContextProperty(QStringLiteral("contextInitialUrl"), "undefined");
+        }
+    }
+
+    app_context->setContextProperty(QStringLiteral("contextPicturesLocation"), picturesLocationUrl);
+    app_context->setContextProperty(QStringLiteral("contextImageNameFilters"), imagesToShow);
+
+    return imagesToShow;
+}
+
+QStringList ImageContext::getFilteredImageChoice(QUrl pic_location)
 {
     QStringList rawSortedList;
     QStringList result;
@@ -63,33 +93,10 @@ QStringList ImageContext::imageNameFilters(QUrl pic_location)
     }
 
     qDebug() << "Nr. of pics: " << result.size();
+    qDebug() << result;
     return result;
 }
 
-void ImageContext::setContext(QQmlContext* context)
-{
-    app_context = context;
-    QUrl picturesLocationUrl = QUrl::fromLocalFile(QDir::homePath());
-    const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
-    const QStringList nameFilters = imageNameFilters(picturesLocations.first());
 
-    if (!picturesLocations.isEmpty()) {
-        picturesLocationUrl = QUrl::fromLocalFile(picturesLocations.first());
-        if (!QDir(picturesLocations.first()).entryInfoList(nameFilters, QDir::Files).isEmpty())
-        {
-            QUrl initialUrl = picturesLocationUrl;
-            app_context->setContextProperty(QStringLiteral("contextInitialUrl"), initialUrl);
-        }else
-        {
-            app_context->setContextProperty(QStringLiteral("contextInitialUrl"), "undefined");
-        }
-    }
 
-    app_context->setContextProperty(QStringLiteral("contextPicturesLocation"), picturesLocationUrl);
-    app_context->setContextProperty(QStringLiteral("contextImageNameFilters"), nameFilters);
-}
 
-void ImageContext::onUpdateContext(void)
-{
-    setContext(app_context);
-}

@@ -5,6 +5,7 @@
 **
 ****************************************************************************/
 
+
 #ifdef QT_WIDGETS_LIB
 #include <QtWidgets/QApplication>
 #else
@@ -24,7 +25,7 @@
 #include "filelogger.h"
 
 
-#define VERSION "0.1"
+#define VERSION "0.3"
 int main(int argc, char* argv[])
 {
     // The reason to use QApplication is that QWidget-based dialogs

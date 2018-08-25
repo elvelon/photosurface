@@ -120,8 +120,9 @@ void Downloader::handlePayloadOfReply(QNetworkReply *reply, QString filename)
     else
     {
         saveImageFromReplyToDisk(filename, reply);
-        ListOfPicUrlsReadyToDownload.removeFirst();
+        ListOfPicUrlsReadyToDownload.removeLast();
     }
+    qDebug() << ListOfPicUrlsReadyToDownload;
 }
 
 bool Downloader::fileIsPicList(const QString fn)
@@ -142,7 +143,7 @@ QStringList Downloader::processPicList(QIODevice *data){
             continue;
         }
         pic_urls << ftpUrl + QString::fromLocal8Bit(buf, nr_of_chars_read-1);
-        qDebug() << pic_urls;
+//        qDebug() << pic_urls;
 
     }
     return pic_urls;
@@ -150,10 +151,16 @@ QStringList Downloader::processPicList(QIODevice *data){
 
 void Downloader::deletePicture(QString fn)
 {
-    emit logToFile(QString("deleting file: %1").arg(fn));
-    QFile file (fn);
+    QFile file(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/" + fn);
     if(file.exists())
+    {
         file.remove();
+        emit logToFile(QString("File %1 deleted").arg(fn));
+    }
+    else
+    {
+        emit logToFile(QString("error deleting file: %1").arg(fn));
+    }
 }
 
 bool Downloader::saveImageFromReplyToDisk(const QString &filename, QIODevice *data)

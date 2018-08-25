@@ -24,20 +24,20 @@ void Ping::deletePicList()
     manager.get(QNetworkRequest(QUrl("http://www.reha-daheim.de/GrannysGallery/deletePiclist.php")));   //Dopti
 }
 
-void Ping::dl_replyFinished (QNetworkReply *reply)
+void Ping::dl_replyFinished(QNetworkReply *reply)
 {
     if(reply->error())
     {
-        qDebug() << "LIST_ERROR!";
+        emit logToFile("Ping-Reply error!");
     }
     else
     {
         while(!(reply->atEnd())){
             QString line = reply->readLine();
-            qDebug() << line;
+            emit logToFile(QString("Reply: %1").arg(line));
         }
         if(reply->atEnd()){
-            qDebug() << "@End_LIST";
+            emit logToFile(QString("@End of ping reply to: %1").arg(reply->request().url().toString()));
         }
     }
     reply->deleteLater();

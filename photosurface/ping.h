@@ -12,6 +12,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QUrl>
 
 class Ping : public QObject
 {
@@ -29,7 +30,7 @@ signals:
 public slots:
     void onPing();
     void deletePicList();
-    void dl_replyFinished (QNetworkReply *reply);
+    void dl_replyFinished(QNetworkReply *reply);
 };
 
 #endif // PING_H

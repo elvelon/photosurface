@@ -18,7 +18,7 @@ FileLogger::FileLogger(QString version, QString logFileName, QObject *parent) : 
 
 void FileLogger::generateLogFile(QString version, QString fn)
 {
-    QString time = QDateTime::currentDateTime().toString("yyMMddhhmmss");
+    QString time = QDateTime::currentDateTime().toString("yyMMdd_hhmmss");
     log_file = new QFile(fn + "_" + time + ".log");
     onFileLog("Version: " + version);
 }

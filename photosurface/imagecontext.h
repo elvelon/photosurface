@@ -16,14 +16,14 @@ class ImageContext : public QObject
     Q_OBJECT
 public:
     explicit ImageContext(QObject *parent=Q_NULLPTR);
-    void setContext(QQmlContext *context);
-
-private:
-    QStringList imageNameFilters(QUrl pic_location);
-    QQmlContext *app_context;
+    QStringList setContext(QQmlContext *context);
 
 public slots:
     void onUpdateContext( void );
+
+private:
+    QStringList getFilteredImageChoice(QUrl pic_location);
+    QQmlContext *app_context;
 };
 
 #endif // IMAGECONTEXT_H
